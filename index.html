@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Endless procedural white noise generator with customizable variants and frequency controls">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="WhoaNoise">
+
+  <title>WhoaNoise - Procedural White Noise Generator</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1 class="title">WhoaNoise</h1>
+      <p class="subtitle">Endless Noise Generator</p>
+    </header>
+
+    <main class="main">
+      <button class="play-button" id="playButton" aria-label="Play or stop noise">
+        <span class="play-icon" id="playIcon">
+          <svg class="icon icon-play" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <svg class="icon icon-stop" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+        </span>
+        <span class="play-label" id="playLabel">Play</span>
+      </button>
+
+      <section class="noise-types" aria-label="Noise type selection">
+        <h2 class="section-title">Noise Type</h2>
+        <div class="noise-grid" id="noiseGrid">
+          <button class="noise-btn active" data-type="white">
+            <span class="noise-name">White</span>
+            <span class="noise-desc">Full spectrum</span>
+          </button>
+          <button class="noise-btn" data-type="pink">
+            <span class="noise-name">Pink</span>
+            <span class="noise-desc">Natural balance</span>
+          </button>
+          <button class="noise-btn" data-type="brown">
+            <span class="noise-name">Brown</span>
+            <span class="noise-desc">Deep rumble</span>
+          </button>
+          <button class="noise-btn" data-type="blue">
+            <span class="noise-name">Blue</span>
+            <span class="noise-desc">Bright hiss</span>
+          </button>
+          <button class="noise-btn" data-type="violet">
+            <span class="noise-name">Violet</span>
+            <span class="noise-desc">Sharp highs</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="equalizer" aria-label="Frequency equalizer">
+        <h2 class="section-title">Equalizer</h2>
+        <div class="eq-sliders">
+          <div class="eq-slider">
+            <label for="lowSlider" class="eq-label">Low</label>
+            <input type="range" id="lowSlider" class="slider" min="-12" max="12" value="0" step="0.5">
+            <span class="eq-value" id="lowValue">0 dB</span>
+          </div>
+          <div class="eq-slider">
+            <label for="midSlider" class="eq-label">Mid</label>
+            <input type="range" id="midSlider" class="slider" min="-12" max="12" value="0" step="0.5">
+            <span class="eq-value" id="midValue">0 dB</span>
+          </div>
+          <div class="eq-slider">
+            <label for="highSlider" class="eq-label">High</label>
+            <input type="range" id="highSlider" class="slider" min="-12" max="12" value="0" step="0.5">
+            <span class="eq-value" id="highValue">0 dB</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Install as app for best experience</p>
+    </footer>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
