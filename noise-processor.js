@@ -10,6 +10,21 @@ class NoiseProcessor extends AudioWorkletProcessor {
     // Current noise type
     this.noiseType = 'white';
 
+    // Double buffering state
+    // 2 seconds @ 48kHz per buffer gives plenty of headroom
+    this.bufferSize = 48000 * 2;
+    this.bufferA = new Float32Array(this.bufferSize);
+    this.bufferB = new Float32Array(this.bufferSize);
+
+    this.index = 0;
+    this.activeBuffer = this.bufferA;
+    this.inactiveBuffer = this.bufferB;
+    this.fillPointer = 0; // Where are we writing in the inactive buffer?
+
+    // Initial fill for both buffers
+    this.bufferFill(this.bufferA, 0, this.bufferSize);
+    this.bufferFill(this.bufferB, 0, this.bufferSize);
+
     // Pink noise state (Voss-McCartney algorithm)
     this.pinkRows = new Float32Array(16);
     this.pinkRunningSum = 0;
@@ -32,10 +47,33 @@ class NoiseProcessor extends AudioWorkletProcessor {
   }
 
   /**
-   * Generate white noise sample (uniform random distribution)
+   * Refill a range of the buffer
+   */
+  bufferFill(buffer, start, count) {
+    for (let i = 0; i < count && start + i < buffer.length; i++) {
+      buffer[start + i] = Math.random() * 2 - 1;
+    }
+  }
+
+  /**
+   * Get white noise sample from the active buffer
+   * Switches buffers and regenerates when exhausted
    */
   white() {
-    return Math.random() * 2 - 1;
+    const sample = this.activeBuffer[this.index++];
+
+    // If buffer is exhausted, swap to the other one
+    if (this.index >= this.activeBuffer.length) {
+      // Swap active buffer
+      const temp = this.activeBuffer;
+      this.activeBuffer = this.inactiveBuffer;
+      this.inactiveBuffer = temp;
+
+      this.index = 0;
+      this.fillPointer = 0;
+    }
+
+    return sample;
   }
 
   /**
@@ -139,6 +177,14 @@ class NoiseProcessor extends AudioWorkletProcessor {
         // but same base algorithm
         outputChannel[i] = this.getSample();
       }
+    }
+
+    // Incrementally refill inactive buffer
+    // We play 128 samples, so refill 200 samples to stay ahead
+    const refillAmount = 200;
+    if (this.fillPointer < this.bufferSize) {
+      this.bufferFill(this.inactiveBuffer, this.fillPointer, refillAmount);
+      this.fillPointer += refillAmount;
     }
 
     // Return true to keep processor alive
