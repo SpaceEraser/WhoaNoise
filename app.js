@@ -75,6 +75,12 @@ class WhoaNoise {
         // Create noise generator node
         this.noiseNode = new AudioWorkletNode(this.audioContext, 'noise-processor');
 
+        // Send current noise type to the processor (in case user selected before playing)
+        this.noiseNode.port.postMessage({
+            type: 'setNoiseType',
+            noiseType: this.currentNoiseType
+        });
+
         // Create gain node for volume control
         this.gainNode = this.audioContext.createGain();
         this.gainNode.gain.value = 0.5;
