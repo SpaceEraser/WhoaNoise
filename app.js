@@ -3,6 +3,8 @@
  * Procedural white noise generator with EQ and media controls
  */
 
+const STORAGE_KEY = 'whoanoise-state';
+
 class WhoaNoise {
     constructor() {
         // Audio state
@@ -33,11 +35,17 @@ class WhoaNoise {
         this.togglePlay = this.togglePlay.bind(this);
         this.handleNoiseSelect = this.handleNoiseSelect.bind(this);
 
+        // Install hint element
+        this.installHint = document.getElementById('installHint');
+
         // Initialize
         this.init();
     }
 
     async init() {
+        // Load saved state before setting up UI
+        this.loadState();
+
         // Set up event listeners
         this.playButton.addEventListener('click', this.togglePlay);
         this.noiseGrid.addEventListener('click', this.handleNoiseSelect);
@@ -57,10 +65,13 @@ class WhoaNoise {
             }
         }
 
-        // Update initial slider displays
-        this.updateSliderDisplay('low', 0);
-        this.updateSliderDisplay('mid', 0);
-        this.updateSliderDisplay('high', 0);
+        // Update initial slider displays from current values
+        this.updateSliderDisplay('low', parseFloat(this.lowSlider.value));
+        this.updateSliderDisplay('mid', parseFloat(this.midSlider.value));
+        this.updateSliderDisplay('high', parseFloat(this.highSlider.value));
+
+        // Set up iOS install hint
+        this.setupInstallHint();
     }
 
     async initAudio() {
@@ -172,6 +183,8 @@ class WhoaNoise {
     updatePlayButton() {
         this.playButton.classList.toggle('playing', this.isPlaying);
         this.playLabel.textContent = this.isPlaying ? 'Stop' : 'Play';
+        // Force Safari to repaint (fixes iOS rendering bug with classList.toggle)
+        void this.playButton.offsetWidth;
     }
 
     handleNoiseSelect(event) {
@@ -200,6 +213,9 @@ class WhoaNoise {
 
         // Update media session metadata
         this.updateMediaMetadata();
+
+        // Persist state
+        this.saveState();
     }
 
     updateEQ(band) {
@@ -213,6 +229,9 @@ class WhoaNoise {
         if (filter) {
             filter.gain.setValueAtTime(value, this.audioContext.currentTime);
         }
+
+        // Persist state
+        this.saveState();
     }
 
     updateSliderDisplay(band, value) {
@@ -280,6 +299,71 @@ class WhoaNoise {
         });
 
         navigator.mediaSession.playbackState = this.isPlaying ? 'playing' : 'paused';
+    }
+
+    setupInstallHint() {
+        if (!this.installHint) return;
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone;
+
+        if (isStandalone) {
+            // Already installed, hide the hint
+            this.installHint.style.display = 'none';
+        } else if (isIOS) {
+            // iOS doesn't have automatic install prompts, show instructions
+            this.installHint.innerHTML = 'Tap <strong>Share</strong> → <strong>Add to Home Screen</strong> to install';
+        }
+    }
+
+    saveState() {
+        const state = {
+            noiseType: this.currentNoiseType,
+            eq: {
+                low: parseFloat(this.lowSlider.value),
+                mid: parseFloat(this.midSlider.value),
+                high: parseFloat(this.highSlider.value)
+            }
+        };
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+            console.warn(`Failed to save state: ${e}`);
+        }
+    }
+
+    loadState() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (!saved) return;
+
+            const state = JSON.parse(saved);
+
+            // Restore noise type
+            if (state.noiseType) {
+                this.currentNoiseType = state.noiseType;
+                // Update UI to reflect saved noise type
+                this.noiseGrid.querySelectorAll('.noise-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.type === state.noiseType);
+                });
+            }
+
+            // Restore EQ values
+            if (state.eq) {
+                if (typeof state.eq.low === 'number') {
+                    this.lowSlider.value = state.eq.low;
+                }
+                if (typeof state.eq.mid === 'number') {
+                    this.midSlider.value = state.eq.mid;
+                }
+                if (typeof state.eq.high === 'number') {
+                    this.highSlider.value = state.eq.high;
+                }
+            }
+        } catch (e) {
+            console.warn(`Failed to load state: ${e}`);
+        }
     }
 }
 
