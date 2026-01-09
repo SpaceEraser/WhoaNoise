@@ -74,14 +74,16 @@ class WhoaNoise {
         this.setupInstallHint();
     }
 
-    async initAudio() {
-        if (this.audioContext) return;
-
-        // Create audio context
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    async setupAudioGraph() {
+        if (this.noiseNode) return;
 
         // Load the noise processor worklet
-        await this.audioContext.audioWorklet.addModule('noise-processor.js');
+        try {
+            await this.audioContext.audioWorklet.addModule('noise-processor.js');
+        } catch (e) {
+            console.error('Failed to load audio worklet:', e);
+            throw e;
+        }
 
         // Create noise generator node
         this.noiseNode = new AudioWorkletNode(this.audioContext, 'noise-processor');
@@ -140,13 +142,17 @@ class WhoaNoise {
 
     async start() {
         try {
-            await this.initAudio();
+            // 1. Initialize Context (Sync)
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
 
-            // Resume context if suspended (required for autoplay policies)
+            // 2. Resume Context (User Gesture Sensitive - must happen early)
             if (this.audioContext.state === 'suspended') {
                 await this.audioContext.resume();
             }
 
+            // 3. Play Silent Audio (User Gesture Sensitive - must happen early)
             // Create silent audio element to anchor Media Session on mobile
             if (!this.mediaElement) {
                 this.mediaElement = document.createElement('audio');
@@ -154,14 +160,27 @@ class WhoaNoise {
                 this.mediaElement.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
                 this.mediaElement.loop = true;
             }
-            await this.mediaElement.play();
 
+            // Try to play silent audio, but don't fail the whole start process if it fails (e.g. strict autoplay)
+            try {
+                await this.mediaElement.play();
+            } catch (e) {
+                console.warn('Background audio anchor failed to play:', e);
+            }
+
+            // 4. Update UI immediately to show responsiveness
             this.isPlaying = true;
             this.updatePlayButton();
             this.setupMediaSession();
 
+            // 5. Initialize Nodes & Worklet (Async, heavy)
+            // This might take a moment, but UI is already updated
+            await this.setupAudioGraph();
+
         } catch (error) {
             console.error('Failed to start audio:', error);
+            // If main audio init failed, we should revert the UI
+            this.stop();
         }
     }
 
@@ -181,10 +200,14 @@ class WhoaNoise {
     }
 
     updatePlayButton() {
-        this.playButton.classList.toggle('playing', this.isPlaying);
-        this.playLabel.textContent = this.isPlaying ? 'Stop' : 'Play';
-        // Force Safari to repaint (fixes iOS rendering bug with classList.toggle)
-        void this.playButton.offsetWidth;
+        // Use requestAnimationFrame to ensure UI updates are picked up by the renderer
+        // This is crucial for Safari iOS which can sometimes miss UI updates during heavy async chains
+        requestAnimationFrame(() => {
+            this.playButton.classList.toggle('playing', this.isPlaying);
+            this.playLabel.textContent = this.isPlaying ? 'Stop' : 'Play';
+            // Force Safari to repaint (fixes iOS rendering bug with classList.toggle)
+            void this.playButton.offsetWidth;
+        });
     }
 
     handleNoiseSelect(event) {
