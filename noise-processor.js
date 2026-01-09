@@ -11,15 +11,15 @@ class NoiseProcessor extends AudioWorkletProcessor {
     this.noiseType = 'white';
 
     // Double buffering state
-    // 2 seconds @ 48kHz per buffer gives plenty of headroom
-    this.bufferSize = 48000 * 2;
+    // 30 seconds @ 48kHz per buffer for battery efficiency
+    this.bufferSize = 48000 * 30;
     this.bufferA = new Float32Array(this.bufferSize);
     this.bufferB = new Float32Array(this.bufferSize);
 
     this.index = 0;
     this.activeBuffer = this.bufferA;
     this.inactiveBuffer = this.bufferB;
-    this.fillPointer = 0; // Where are we writing in the inactive buffer?
+    this.fillPointer = 0;
 
     // Initial fill for both buffers
     this.bufferFill(this.bufferA, 0, this.bufferSize);
@@ -36,6 +36,9 @@ class NoiseProcessor extends AudioWorkletProcessor {
 
     // Blue/Violet noise state
     this.blueLast = 0;
+
+    // Frame counter for throttled refills
+    this.frameCount = 0;
     this.violetLast = [0, 0];
 
     // Handle messages from main thread
@@ -179,10 +182,11 @@ class NoiseProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Incrementally refill inactive buffer
-    // We play 128 samples, so refill 200 samples to stay ahead
-    const refillAmount = 200;
-    if (this.fillPointer < this.bufferSize) {
+    // Incrementally refill inactive buffer with reduced frequency
+    // Refill ~100ms of audio (4800 samples) every 10th frame to reduce CPU wakeups
+    this.frameCount++;
+    if (this.frameCount % 10 === 0 && this.fillPointer < this.bufferSize) {
+      const refillAmount = 4800;
       this.bufferFill(this.inactiveBuffer, this.fillPointer, refillAmount);
       this.fillPointer += refillAmount;
     }
